@@ -125,7 +125,25 @@ const listenOnChange = () => {
     });
   }
 };
-onMounted(() => listenOnChange());
+onMounted(() => {
+  listenOnChange();
+  fillValidationGroups();
+});
+
+const validationGroups = new Map<Element, Element[]>(); // key - group parent element, value - array of group child inputs
+const fillValidationGroups = () => {
+  for (const item of Array.from(
+    document.querySelectorAll(".form-box .form-group-item[required]")
+  )) {
+    const groupValues: Element[] = [];
+    for (const el of Array.from(
+      item.querySelectorAll("input, select, textarea")
+    )) {
+      groupValues.push(el);
+    }
+    validationGroups.set(item, groupValues);
+  }
+};
 
 /**
  * Returns true if all required field groups are set inside form-box.
@@ -134,26 +152,26 @@ onMounted(() => listenOnChange());
  */
 const validateRequiredFields = () => {
   function validateForItem(elem: Element) {
-    for (const el of Array.from(
-      elem.querySelectorAll("input, select, textarea")
-    )) {
-      if (
-        el instanceof HTMLInputElement &&
-        (el.type === "checkbox" || el.type === "radio")
-      ) {
-        if (el.checked) {
-          return true; // this for checkbox and radio
+    const values = validationGroups.get(elem);
+    if (values) {
+      for (const el of values) {
+        if (
+          el instanceof HTMLInputElement &&
+          (el.type === "checkbox" || el.type === "radio")
+        ) {
+          if (el.checked) {
+            return true; // this for checkbox and radio
+          }
+        } else if ((el as any).value.length > 0) {
+          return true; // this for text inputs and select
         }
-      } else if ((el as any).value.length > 0) {
-        return true; // this for text inputs and select
       }
     }
+
     return false; // return false when there's all the fields unset
   }
 
-  for (const item of Array.from(
-    document.querySelectorAll(".form-box .form-group-item[required]")
-  )) {
+  for (const item of validationGroups.keys()) {
     if (!validateForItem(item)) {
       return false;
     }
@@ -177,6 +195,7 @@ const submitClick = () => {
       } else {
         onRequestFail();
       }
+      formRef.value?.reset();
     });
   }
 };
